@@ -60,6 +60,33 @@ Then open <http://localhost:8000> in a **WebGPU-capable browser**.
 If WebGPU isn't available, the app shows a friendly fallback message instead of
 breaking.
 
+## Deploying to Cloudflare
+
+The app is a static site, deployed with **Cloudflare Workers Static Assets**
+(configured in `wrangler.jsonc`). A `.assetsignore` keeps repo files like the
+README and config out of what gets served — only `index.html` ships.
+
+### Deploy via the Cloudflare dashboard (Git-connected, auto-deploy)
+
+1. Push this repo to GitHub (already done if you're reading this there).
+2. In the Cloudflare dashboard, go to **Workers & Pages → Create →
+   Workers → Import a repository** and connect your GitHub account.
+3. Select this repository and the `main` branch.
+4. Cloudflare auto-detects `wrangler.jsonc`. Leave the **build command empty**
+   and set the **deploy command** to `npx wrangler deploy`.
+5. Click **Deploy**. Every push to `main` now redeploys automatically.
+
+Your site will be live at `https://infinite-craft-local.<your-subdomain>.workers.dev`
+(rename via the `name` field in `wrangler.jsonc`).
+
+### Deploy from the CLI (optional)
+
+```bash
+npm install
+npx wrangler login
+npm run deploy      # wrangler deploy
+```
+
 ## Tech
 
 - Vanilla JS + HTML/CSS in a single file — no build step.
