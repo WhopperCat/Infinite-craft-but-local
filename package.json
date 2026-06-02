@@ -1,0 +1,13 @@
+{
+  "name": "infinite-craft-local",
+  "version": "1.0.0",
+  "private": true,
+  "description": "In-browser Infinite Craft clone running Gemma via WebLLM, deployed on Cloudflare Workers",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}
