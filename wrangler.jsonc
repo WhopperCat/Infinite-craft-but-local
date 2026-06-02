@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "infinite-craft-local",
+  "name": "infinitcraftbutlocal",
   "compatibility_date": "2026-06-02",
   "assets": {
     "directory": "./"
