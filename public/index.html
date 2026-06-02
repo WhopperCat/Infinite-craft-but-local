@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Infinite Craft — Local AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loading-box glass">
+      <div class="loading-spinner"></div>
+      <h1 class="loading-title">Infinite Craft</h1>
+      <p id="loading-text" class="loading-text">
+        Downloading AI model… (~97MB, one time only)
+      </p>
+      <div class="progress-track">
+        <div id="progress-bar" class="progress-bar"></div>
+      </div>
+      <p id="progress-file" class="progress-file"></p>
+    </div>
+  </div>
+
+  <!-- Main app -->
+  <div id="app" class="app">
+    <aside class="sidebar glass">
+      <header class="sidebar-header">
+        <h2>Elements</h2>
+        <span id="discovered-count" class="discovered-count">0 elements discovered</span>
+      </header>
+      <div id="element-list" class="element-list"></div>
+    </aside>
+
+    <main class="canvas-wrap">
+      <div id="canvas" class="canvas"></div>
+      <div class="canvas-hint" id="canvas-hint">
+        Drag elements from the sidebar. Drop one onto another to combine.
+      </div>
+      <button id="reset-btn" class="reset-btn glass" title="Clear the canvas">
+        Clear canvas
+      </button>
+    </main>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script type="module" src="./game.js"></script>
+</body>
+</html>
