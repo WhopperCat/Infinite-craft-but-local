@@ -1,0 +1,11 @@
+# Files in the project root that should NOT be served as static assets.
+# (Workers Static Assets uploads everything in "directory" except these.)
+.git
+.gitignore
+.assetsignore
+node_modules
+package.json
+package-lock.json
+wrangler.jsonc
+worker.js
+README.md

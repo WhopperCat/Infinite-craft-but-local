@@ -362,9 +362,12 @@ const MODEL_KEY = "infinite-craft-local:model";
 // build actually ships so the dropdown only shows usable options.
 // Ordered best-fit first for this creative task. Filtered against what the
 // loaded WebLLM build actually ships, so unavailable IDs are skipped.
+// Ordered best-fit first. NOTE: Gemma 4 (released 2026) is not yet available
+// as a WebLLM/MLC WebGPU build, so the newest Gemma we can run in-browser is
+// Gemma 3 1B — used as the default here.
 const PREFERRED_MODELS = [
-  "gemma-2-2b-it-q4f16_1-MLC",   // ~1.6GB, great balance of quality/size (default)
-  "gemma3-1b-it-q4f16_1-MLC",    // newest Gemma, very small & fast
+  "gemma3-1b-it-q4f16_1-MLC",    // newest Gemma, small & fast (default)
+  "gemma-2-2b-it-q4f16_1-MLC",   // ~1.6GB, strong quality/size balance
   "gemma-2-2b-it-q4f32_1-MLC",
   "gemma-2-9b-it-q4f16_1-MLC",   // highest quality, large download
   "gemma-2-9b-it-q4f32_1-MLC",
@@ -756,7 +759,11 @@ async function loadModel(modelId) {
   progressWrap.classList.remove("hidden");
   modelStatus.textContent = "downloading";
 
-  engine = new webllm.MLCEngine();
+  const onFile = location.protocol === "file:";
+  const { appConfig, useProxy } = await buildAppConfig(onFile);
+  if (useProxy) modelStatus.textContent = "downloading (via proxy)";
+
+  engine = new webllm.MLCEngine({ appConfig });
   engine.setInitProgressCallback((report) => {
     const pct = typeof report.progress === "number"
       ? Math.round(report.progress * 100)
@@ -778,11 +785,73 @@ async function loadModel(modelId) {
   } catch (err) {
     console.error(err);
     modelStatus.textContent = "error";
-    progressText.textContent = "Failed to load model: " + (err?.message || err);
+    progressText.textContent = "Failed to load model: " + describeLoadError(err, onFile);
     startBtn.disabled = false;
     modelSelect.disabled = false;
     startBtn.textContent = "Retry";
   }
+}
+
+// Build the WebLLM AppConfig, choosing a cache backend and (when available)
+// routing model downloads through a same-origin proxy.
+async function buildAppConfig(onFile) {
+  const appConfig = {
+    ...webllm.prebuiltAppConfig,
+    // The default "cache" backend uses the Cache Storage API, which Chromium
+    // disables on file:// (opaque) origins — so when the page is opened
+    // directly from disk we fall back to IndexedDB, which IS allowed there.
+    cacheBackend: onFile ? "indexeddb" : "cache",
+  };
+
+  // If a same-origin model proxy (our Cloudflare Worker) is present, route the
+  // model files through it so the browser only talks to our own domain. This
+  // sidesteps the common "Failed to fetch" caused by networks, firewalls, or
+  // extensions blocking huggingface.co / raw.githubusercontent.com directly.
+  let useProxy = false;
+  if (!onFile) {
+    try {
+      const r = await fetch("/_model/ping", { cache: "no-store" });
+      useProxy = r.ok && (await r.text()).trim() === "infinite-craft-proxy";
+    } catch (e) { useProxy = false; }
+  }
+
+  if (useProxy) {
+    const origin = location.origin;
+    appConfig.model_list = appConfig.model_list.map((rec) => {
+      const m = { ...rec };
+      m.model = proxify(m.model, origin);
+      if (typeof m.model_lib === "string") m.model_lib = proxify(m.model_lib, origin);
+      return m;
+    });
+  }
+
+  return { appConfig, useProxy };
+}
+
+// Rewrite a Hugging Face / GitHub-raw URL to our same-origin proxy route.
+function proxify(u, origin) {
+  if (typeof u !== "string") return u;
+  const HF = "https://huggingface.co/";
+  const GH = "https://raw.githubusercontent.com/";
+  if (u.startsWith(HF)) return origin + "/_model/hf/" + u.slice(HF.length);
+  if (u.startsWith(GH)) return origin + "/_model/gh/" + u.slice(GH.length);
+  return u;
+}
+
+// Turn a raw load error into something actionable for the player.
+function describeLoadError(err, onFile) {
+  const msg = err && err.message ? err.message : String(err);
+  if (/failed to fetch|networkerror|load failed|err_/i.test(msg)) {
+    return msg + " — couldn't download the model files. Check your internet " +
+      "connection (the weights are fetched from Hugging Face), and disable any " +
+      "VPN, ad/content blocker, or strict privacy mode that might block them." +
+      (onFile ? " Some blockers are stricter on file:// pages — serving over http often helps." : "");
+  }
+  if (/cache|securityerror|quota|indexeddb|database/i.test(msg)) {
+    return msg + " — the browser blocked local caching of the model. Try a " +
+      "Chromium-based browser, or serve the page over http(s) instead of file://.";
+  }
+  return msg;
 }
 
 /* ============================================================
