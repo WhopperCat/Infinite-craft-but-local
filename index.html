@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Infinite Craft — Local (Gemma + WebLLM)</title>
+<title>Infinite Craft — Local (Gemma 4 via Ollama)</title>
 <style>
   :root {
     --bg: #0f1117;
@@ -195,9 +195,9 @@
   .btn.danger:hover { border-color: #ff5c7c; color: #ff8ca3; }
 
   #footer { padding: 10px 18px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); }
-  #footer a { color: var(--accent-2); text-decoration: none; }
+  #footer a { color: var(--accent-2); text-decoration: none; cursor: pointer; }
 
-  /* ---------- Loading overlay ---------- */
+  /* ---------- Overlay / connect screen ---------- */
   #overlay {
     position: fixed;
     inset: 0;
@@ -211,25 +211,36 @@
     padding: 24px;
   }
   #overlay h2 { font-size: 26px; margin: 0 0 6px; }
-  #overlay .tagline { color: var(--muted); margin: 0 0 28px; font-size: 14px; max-width: 460px; line-height: 1.6; }
-  #progress-wrap {
-    width: min(440px, 80vw);
+  #overlay .tagline { color: var(--muted); margin: 0 0 24px; font-size: 14px; max-width: 480px; line-height: 1.6; }
+  #overlay .emoji-row { font-size: 40px; margin-bottom: 18px; letter-spacing: 8px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+    width: min(440px, 92vw);
+    box-shadow: var(--shadow);
+    text-align: left;
+  }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .field input {
+    width: 100%;
+    padding: 10px 12px;
     background: var(--panel-2);
     border: 1px solid var(--border);
-    border-radius: 999px;
-    height: 14px;
-    overflow: hidden;
+    border-radius: 9px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
-  #progress-bar {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
-    transition: width 0.25s ease;
-  }
-  #progress-text { margin-top: 14px; font-size: 13px; color: var(--muted); min-height: 18px; max-width: 90vw; }
-  #overlay .emoji-row { font-size: 40px; margin-bottom: 18px; letter-spacing: 8px; }
-  #start-btn {
-    margin-top: 26px;
+  .field input:focus { border-color: var(--accent); }
+
+  #connect-btn {
+    width: 100%;
+    margin-top: 4px;
     padding: 13px 28px;
     font-size: 15px;
     font-weight: 700;
@@ -240,27 +251,42 @@
     cursor: pointer;
     box-shadow: var(--shadow);
   }
-  #start-btn:hover { filter: brightness(1.08); }
-  #model-select {
+  #connect-btn:hover { filter: brightness(1.08); }
+  #connect-btn:disabled { opacity: 0.6; cursor: default; filter: none; }
+
+  #connect-status { margin-top: 14px; font-size: 13px; color: var(--muted); min-height: 18px; }
+  #connect-status.error { color: #ff8ca3; }
+  #connect-status.ok { color: var(--accent-2); }
+
+  .help {
     margin-top: 16px;
-    padding: 9px 12px;
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    color: var(--text);
-    font-size: 13px;
-  }
-  .unsupported {
-    background: #2a1116;
-    border: 1px solid #ff5c7c;
+    background: #20141a;
+    border: 1px solid #5a2030;
     color: #ffb3c2;
-    padding: 18px 22px;
-    border-radius: 12px;
-    max-width: 520px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 13px;
     line-height: 1.6;
-    font-size: 14px;
   }
-  .unsupported code { background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 5px; }
+  .help code {
+    background: rgba(255,255,255,0.08);
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-size: 12.5px;
+    color: #ffd9e1;
+    user-select: text;
+  }
+  .help pre {
+    background: #0d0f15;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    margin: 8px 0 0;
+    color: var(--text);
+    user-select: text;
+  }
+  .help a { color: var(--accent-2); }
 
   .hidden { display: none !important; }
 
@@ -302,7 +328,7 @@
   <aside id="sidebar">
     <header>
       <h1>♾️ Infinite Craft <span style="font-size:11px;color:var(--muted);font-weight:500;">local</span></h1>
-      <p class="sub">Powered by Gemma running 100% in your browser via WebLLM.</p>
+      <p class="sub">Powered by Gemma 4 running locally through Ollama.</p>
     </header>
     <div id="toolbar">
       <input id="search" type="text" placeholder="Search discoveries…" />
@@ -311,67 +337,52 @@
     <div id="element-list"></div>
     <div class="toolbar-row" style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 18px;border-top:1px solid var(--border);">
       <button class="btn" id="clear-canvas">Clear canvas</button>
+      <button class="btn" id="settings-btn">Engine settings</button>
       <button class="btn danger" id="reset-all">Reset everything</button>
     </div>
     <div id="footer">
-      Model status: <span id="model-status">idle</span> ·
-      <a href="#" id="about-link">about</a>
+      Ollama: <span id="model-status">idle</span> ·
+      <a id="about-link">about</a>
     </div>
   </aside>
 </div>
 
-<!-- Loading / start overlay -->
+<!-- Connect / settings overlay -->
 <div id="overlay">
   <div class="emoji-row">💧🔥🌍🌬️</div>
   <h2>Infinite Craft — Local Edition</h2>
   <p class="tagline">
-    Combine elements to discover new ones. Everything runs locally with
-    Gemma via WebLLM — the model downloads once and is cached in your browser
-    for instant future loads. No server, no API keys.
+    Combine elements to discover new ones. Each combination is decided by
+    <strong>Gemma 4</strong> running on your own machine via
+    <a href="https://ollama.com" target="_blank" rel="noopener" style="color:var(--accent-2)">Ollama</a>
+    — no cloud, no API keys, fully local.
   </p>
 
-  <div id="supported-ui">
-    <select id="model-select"></select>
-    <br/>
-    <button id="start-btn">Download model &amp; play</button>
-    <div id="progress-wrap" class="hidden" style="margin-top:26px;"><div id="progress-bar"></div></div>
-    <div id="progress-text"></div>
-  </div>
-
-  <div id="unsupported-ui" class="unsupported hidden">
-    <strong>WebGPU is not available in this browser.</strong><br/>
-    WebLLM needs WebGPU to run the model on your GPU. Please use a recent
-    version of <code>Chrome</code>, <code>Edge</code>, or another
-    Chromium-based browser on desktop (Safari Technology Preview also works).
-    Make sure hardware acceleration is enabled.
+  <div class="card">
+    <div class="field">
+      <label for="ollama-url">Ollama server URL</label>
+      <input id="ollama-url" type="text" spellcheck="false" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label for="ollama-model">Model tag</label>
+      <input id="ollama-model" type="text" spellcheck="false" autocomplete="off" />
+    </div>
+    <button id="connect-btn">Connect &amp; play</button>
+    <div id="connect-status"></div>
+    <div id="connect-help" class="help hidden"></div>
   </div>
 </div>
 
 <div id="toast"></div>
 
-<script type="module">
-import * as webllm from "https://esm.run/@mlc-ai/web-llm";
-
+<script>
 /* ============================================================
    Config
    ============================================================ */
-const STORAGE_KEY = "infinite-craft-local:v1";
-const MODEL_KEY = "infinite-craft-local:model";
-
-// Candidate models, preferred first. We filter against what this WebLLM
-// build actually ships so the dropdown only shows usable options.
-// Ordered best-fit first for this creative task. Filtered against what the
-// loaded WebLLM build actually ships, so unavailable IDs are skipped.
-// Ordered best-fit first. NOTE: Gemma 4 (released 2026) is not yet available
-// as a WebLLM/MLC WebGPU build, so the newest Gemma we can run in-browser is
-// Gemma 3 1B — used as the default here.
-const PREFERRED_MODELS = [
-  "gemma3-1b-it-q4f16_1-MLC",    // newest Gemma, small & fast (default)
-  "gemma-2-2b-it-q4f16_1-MLC",   // ~1.6GB, strong quality/size balance
-  "gemma-2-2b-it-q4f32_1-MLC",
-  "gemma-2-9b-it-q4f16_1-MLC",   // highest quality, large download
-  "gemma-2-9b-it-q4f32_1-MLC",
-];
+const STORAGE_KEY    = "infinite-craft-local:v1";
+const SETTINGS_KEY   = "infinite-craft-local:ollama";
+const DEFAULT_URL    = "http://localhost:11434";
+const DEFAULT_MODEL  = "gemma4";
 
 const BASE_ELEMENTS = [
   { name: "Water", emoji: "💧" },
@@ -389,14 +400,23 @@ const SYSTEM_PROMPT =
   "Don't force humor, but don't hold back when it's obvious. " +
   'The "name" should be a short noun (1-3 words). The "emoji" must be a single emoji.';
 
+// JSON schema handed to Ollama's structured-output mode so it returns clean JSON.
+const RESULT_SCHEMA = {
+  type: "object",
+  properties: { name: { type: "string" }, emoji: { type: "string" } },
+  required: ["name", "emoji"],
+};
+
 /* ============================================================
    State
    ============================================================ */
-let engine = null;
-let elements = [];           // discovered elements: {name, emoji}
-const elementSet = new Set(); // lowercased names for dedupe
+let elements = [];
+const elementSet = new Set();
 let zCounter = 10;
-const combineCache = new Map(); // "a+b" -> {name, emoji}
+const combineCache = new Map();
+
+let ollamaUrl = DEFAULT_URL;
+let ollamaModel = DEFAULT_MODEL;
 
 /* ============================================================
    DOM
@@ -408,14 +428,12 @@ const elementList = $("#element-list");
 const statsEl = $("#stats");
 const searchEl = $("#search");
 const overlay = $("#overlay");
-const startBtn = $("#start-btn");
-const progressWrap = $("#progress-wrap");
-const progressBar = $("#progress-bar");
-const progressText = $("#progress-text");
+const connectBtn = $("#connect-btn");
+const connectStatus = $("#connect-status");
+const connectHelp = $("#connect-help");
+const urlInput = $("#ollama-url");
+const modelInput = $("#ollama-model");
 const modelStatus = $("#model-status");
-const modelSelect = $("#model-select");
-const supportedUI = $("#supported-ui");
-const unsupportedUI = $("#unsupported-ui");
 const toastEl = $("#toast");
 
 /* ============================================================
@@ -434,6 +452,19 @@ function loadState() {
 function saveState() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(elements)); } catch (e) {}
 }
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s.url) ollamaUrl = s.url;
+      if (s.model) ollamaModel = s.model;
+    }
+  } catch (e) { /* ignore */ }
+}
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ url: ollamaUrl, model: ollamaModel })); } catch (e) {}
+}
 
 /* ============================================================
    UI helpers
@@ -443,7 +474,7 @@ function toast(msg) {
   toastEl.textContent = msg;
   toastEl.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2600);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2800);
 }
 
 function updateStats() {
@@ -532,7 +563,7 @@ function startTileDrag(ev, tile) {
     }
   }
 
-  function up(e) {
+  function up() {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", up);
     tile.classList.remove("dragging");
@@ -551,7 +582,6 @@ function startSidebarDrag(ev, el) {
   ev.preventDefault();
   const canvasRect = canvas.getBoundingClientRect();
 
-  // Floating ghost that follows the pointer
   const ghost = document.createElement("div");
   ghost.className = "tile dragging";
   ghost.style.position = "fixed";
@@ -620,13 +650,11 @@ async function combineTiles(tileA, tileB) {
   const a = tileData(tileA);
   const b = tileData(tileB);
 
-  // Position the two tiles get replaced at the midpoint
   const aL = parseFloat(tileA.style.left), aT = parseFloat(tileA.style.top);
   const bL = parseFloat(tileB.style.left), bT = parseFloat(tileB.style.top);
   const midX = (aL + bL) / 2;
   const midY = (aT + bT) / 2;
 
-  // Loading indicator
   const loader = document.createElement("div");
   loader.className = "combine-loader";
   loader.style.left = midX + "px";
@@ -641,20 +669,15 @@ async function combineTiles(tileA, tileB) {
   try {
     const result = await combine(a, b);
     loader.remove();
-    const tile = createTile(result, midX, midY, { spawn: true });
+    createTile(result, midX, midY, { spawn: true });
     const isNew = addElementToCollection(result, { highlight: true });
-    if (isNew) {
-      toast(`${a.name} + ${b.name} = ${result.emoji} ${result.name}  (new!)`);
-    } else {
-      toast(`${a.name} + ${b.name} = ${result.emoji} ${result.name}`);
-    }
+    toast(`${a.name} + ${b.name} = ${result.emoji} ${result.name}${isNew ? "  (new!)" : ""}`);
   } catch (err) {
     console.error(err);
     loader.remove();
-    // Put the originals back so the player doesn't lose them
     createTile(a, aL, aT);
     createTile(b, bL, bT);
-    toast("Combination failed — " + (err?.message || "try again"));
+    toast("Combination failed — " + (err?.message || "is Ollama running?"));
   }
 }
 
@@ -664,16 +687,28 @@ async function combine(a, b) {
 
   const userMsg = `The player combined "${a.name}" and "${b.name}". What new element do they create?`;
 
-  const reply = await engine.chat.completions.create({
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userMsg },
-    ],
-    temperature: 0.85,
-    max_tokens: 64,
+  const res = await fetch(`${ollamaUrl}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: ollamaModel,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userMsg },
+      ],
+      stream: false,
+      format: RESULT_SCHEMA,
+      options: { temperature: 0.85 },
+    }),
   });
 
-  const text = reply.choices?.[0]?.message?.content ?? "";
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Ollama HTTP ${res.status}${body ? ": " + body.slice(0, 120) : ""}`);
+  }
+
+  const data = await res.json();
+  const text = data?.message?.content ?? "";
   const parsed = parseResult(text, a, b);
   combineCache.set(key, parsed);
   return parsed;
@@ -681,7 +716,6 @@ async function combine(a, b) {
 
 function parseResult(text, a, b) {
   let obj = null;
-  // Try to extract the first {...} JSON blob
   const match = text.match(/\{[\s\S]*?\}/);
   if (match) {
     try { obj = JSON.parse(match[0]); } catch (e) { /* fall through */ }
@@ -693,14 +727,11 @@ function parseResult(text, a, b) {
   let name = obj && typeof obj.name === "string" ? obj.name.trim() : "";
   let emoji = obj && typeof obj.emoji === "string" ? obj.emoji.trim() : "";
 
-  // Sanitize name
   name = name.replace(/^["']|["']$/g, "").slice(0, 40);
   if (!name) name = `${a.name} ${b.name}`.slice(0, 40);
 
-  // Pick first emoji-ish glyph; fall back to a sparkle
   emoji = firstEmoji(emoji) || firstEmoji(text) || "✨";
 
-  // Capitalize nicely
   name = name.replace(/\b\w/g, (c) => c.toUpperCase());
 
   return { name, emoji };
@@ -708,161 +739,96 @@ function parseResult(text, a, b) {
 
 function firstEmoji(str) {
   if (!str) return "";
-  // Match an emoji grapheme (covers most common emoji incl. ZWJ sequences & VS16)
   const re = /\p{Extended_Pictographic}(‍\p{Extended_Pictographic}|️|\p{Emoji_Modifier})*/u;
   const m = str.match(re);
   return m ? m[0] : "";
 }
 
 /* ============================================================
-   Model loading
+   Ollama connection
    ============================================================ */
-function pickAvailableModels() {
-  const ids = new Set(
-    (webllm.prebuiltAppConfig?.model_list || []).map((m) => m.model_id)
-  );
-  let avail = PREFERRED_MODELS.filter((id) => ids.has(id));
-  if (avail.length === 0) {
-    // Fallback: any Gemma in the build, else any model at all.
-    const gemmas = [...ids].filter((id) => /gemma/i.test(id));
-    avail = gemmas.length ? gemmas : [...ids];
-  }
-  return avail;
+function setConnectStatus(msg, kind) {
+  connectStatus.textContent = msg;
+  connectStatus.className = kind || "";
 }
 
-function labelForModel(id) {
-  const sizeMatch = id.match(/(\d+(?:\.\d+)?b)/i);
-  const size = sizeMatch ? sizeMatch[1].toUpperCase() : "";
-  const gen = /gemma3/i.test(id) ? "Gemma 3" : /gemma-2/i.test(id) ? "Gemma 2" : "Gemma";
-  const prec = /q4f16/.test(id) ? "f16" : /q4f32/.test(id) ? "f32" : "";
-  return `${gen} ${size}${prec ? " · " + prec : ""}`.trim();
+function showHelp(html) {
+  connectHelp.innerHTML = html;
+  connectHelp.classList.remove("hidden");
 }
 
-function populateModelSelect() {
-  const models = pickAvailableModels();
-  modelSelect.innerHTML = "";
-  for (const id of models) {
-    const opt = document.createElement("option");
-    opt.value = id;
-    opt.textContent = labelForModel(id);
-    modelSelect.appendChild(opt);
-  }
-  const saved = localStorage.getItem(MODEL_KEY);
-  if (saved && models.includes(saved)) modelSelect.value = saved;
-  return models;
-}
+async function connect() {
+  ollamaUrl = (urlInput.value || DEFAULT_URL).trim().replace(/\/+$/, "");
+  ollamaModel = (modelInput.value || DEFAULT_MODEL).trim();
+  saveSettings();
 
-async function loadModel(modelId) {
-  startBtn.disabled = true;
-  modelSelect.disabled = true;
-  startBtn.textContent = "Loading…";
-  progressWrap.classList.remove("hidden");
-  modelStatus.textContent = "downloading";
+  connectBtn.disabled = true;
+  connectHelp.classList.add("hidden");
+  setConnectStatus("Connecting to Ollama…");
+  modelStatus.textContent = "connecting…";
 
-  const onFile = location.protocol === "file:";
-  const { appConfig, useProxy } = await buildAppConfig(onFile);
-  if (useProxy) modelStatus.textContent = "downloading (via proxy)";
-
-  engine = new webllm.MLCEngine({ appConfig });
-  engine.setInitProgressCallback((report) => {
-    const pct = typeof report.progress === "number"
-      ? Math.round(report.progress * 100)
-      : null;
-    if (pct !== null && pct >= 0) {
-      progressBar.style.width = pct + "%";
-    }
-    progressText.textContent = report.text || "";
-  });
-
+  let data;
   try {
-    await engine.reload(modelId);
-    localStorage.setItem(MODEL_KEY, modelId);
-    modelStatus.textContent = "ready ✓";
-    progressBar.style.width = "100%";
-    progressText.textContent = "Ready!";
-    // brief beat so the user sees 100%
-    setTimeout(() => overlay.classList.add("hidden"), 350);
+    const res = await fetch(`${ollamaUrl}/api/tags`, { method: "GET" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    data = await res.json();
   } catch (err) {
-    console.error(err);
-    modelStatus.textContent = "error";
-    progressText.textContent = "Failed to load model: " + describeLoadError(err, onFile);
-    startBtn.disabled = false;
-    modelSelect.disabled = false;
-    startBtn.textContent = "Retry";
+    connectBtn.disabled = false;
+    modelStatus.textContent = "offline";
+    setConnectStatus("Couldn't reach Ollama at " + ollamaUrl, "error");
+    showHelp(connectionHelpHtml());
+    return;
   }
+
+  const models = (data.models || []).map((m) => m.name);
+  const baseNames = models.map((n) => n.split(":")[0]);
+  const wantBase = ollamaModel.split(":")[0];
+  const hasModel = models.includes(ollamaModel) || baseNames.includes(wantBase);
+
+  if (!hasModel) {
+    connectBtn.disabled = false;
+    modelStatus.textContent = "model missing";
+    setConnectStatus(`Connected, but "${ollamaModel}" isn't pulled.`, "error");
+    showHelp(
+      `<strong>Model not found.</strong> Pull it first:` +
+      `<pre>ollama pull ${escapeHtml(ollamaModel)}</pre>` +
+      (models.length ? `Models you have: <code>${escapeHtml(models.join(", "))}</code>` : "")
+    );
+    return;
+  }
+
+  setConnectStatus("Connected ✓", "ok");
+  modelStatus.textContent = `${ollamaModel} ✓`;
+  setTimeout(() => overlay.classList.add("hidden"), 300);
+  seedCanvas();
 }
 
-// Build the WebLLM AppConfig, choosing a cache backend and (when available)
-// routing model downloads through a same-origin proxy.
-async function buildAppConfig(onFile) {
-  const appConfig = {
-    ...webllm.prebuiltAppConfig,
-    // The default "cache" backend uses the Cache Storage API, which Chromium
-    // disables on file:// (opaque) origins — so when the page is opened
-    // directly from disk we fall back to IndexedDB, which IS allowed there.
-    cacheBackend: onFile ? "indexeddb" : "cache",
-  };
-
-  // If a same-origin model proxy (our Cloudflare Worker) is present, route the
-  // model files through it so the browser only talks to our own domain. This
-  // sidesteps the common "Failed to fetch" caused by networks, firewalls, or
-  // extensions blocking huggingface.co / raw.githubusercontent.com directly.
-  let useProxy = false;
-  if (!onFile) {
-    try {
-      const r = await fetch("/_model/ping", { cache: "no-store" });
-      useProxy = r.ok && (await r.text()).trim() === "infinite-craft-proxy";
-    } catch (e) { useProxy = false; }
-  }
-
-  if (useProxy) {
-    const origin = location.origin;
-    appConfig.model_list = appConfig.model_list.map((rec) => {
-      const m = { ...rec };
-      m.model = proxify(m.model, origin);
-      if (typeof m.model_lib === "string") m.model_lib = proxify(m.model_lib, origin);
-      return m;
-    });
-  }
-
-  return { appConfig, useProxy };
-}
-
-// Rewrite a Hugging Face / GitHub-raw URL to our same-origin proxy route.
-function proxify(u, origin) {
-  if (typeof u !== "string") return u;
-  const HF = "https://huggingface.co/";
-  const GH = "https://raw.githubusercontent.com/";
-  if (u.startsWith(HF)) return origin + "/_model/hf/" + u.slice(HF.length);
-  if (u.startsWith(GH)) return origin + "/_model/gh/" + u.slice(GH.length);
-  return u;
-}
-
-// Turn a raw load error into something actionable for the player.
-function describeLoadError(err, onFile) {
-  const msg = err && err.message ? err.message : String(err);
-  if (/failed to fetch|networkerror|load failed|err_/i.test(msg)) {
-    return msg + " — couldn't download the model files. Check your internet " +
-      "connection (the weights are fetched from Hugging Face), and disable any " +
-      "VPN, ad/content blocker, or strict privacy mode that might block them." +
-      (onFile ? " Some blockers are stricter on file:// pages — serving over http often helps." : "");
-  }
-  if (/cache|securityerror|quota|indexeddb|database/i.test(msg)) {
-    return msg + " — the browser blocked local caching of the model. Try a " +
-      "Chromium-based browser, or serve the page over http(s) instead of file://.";
-  }
-  return msg;
+function connectionHelpHtml() {
+  const origin = location.origin;
+  const isHttps = location.protocol === "https:";
+  return (
+    `<strong>Ollama isn't reachable.</strong> Make sure it's running and that it ` +
+    `allows requests from this page's origin (CORS):` +
+    `<pre>OLLAMA_ORIGINS=* ollama serve</pre>` +
+    `Then pull the model if you haven't:` +
+    `<pre>ollama pull ${escapeHtml(ollamaModel)}</pre>` +
+    `This page's origin is <code>${escapeHtml(origin)}</code>. ` +
+    (isHttps
+      ? `Because this page is served over <code>https</code>, your browser must allow ` +
+        `the call to <code>http://localhost</code> — Chrome/Edge permit this for loopback. `
+      : "") +
+    `Install Ollama from <a href="https://ollama.com" target="_blank" rel="noopener">ollama.com</a>.`
+  );
 }
 
 /* ============================================================
    Init
    ============================================================ */
 function seedCanvas() {
-  // Lay the base elements out along the top of the canvas
   const rect = canvas.getBoundingClientRect();
   const startX = Math.max(40, rect.width / 2 - 180);
   BASE_ELEMENTS.forEach((el, i) => {
-    if (elementSet.has(el.name.toLowerCase())) {
+    if (elementSet.has(el.name.toLowerCase()) && !canvas.querySelector(`.tile[data-name="${CSS.escape(el.name)}"]`)) {
       createTile(el, startX + i * 95, 40, { spawn: true });
     }
   });
@@ -872,9 +838,10 @@ let initialized = false;
 function init() {
   if (initialized) return;
   initialized = true;
+
+  loadSettings();
   elements = loadState();
   elements.forEach((e) => elementSet.add(e.name.toLowerCase()));
-  // Ensure base elements always exist
   for (const b of BASE_ELEMENTS) {
     if (!elementSet.has(b.name.toLowerCase())) {
       elementSet.add(b.name.toLowerCase());
@@ -883,20 +850,15 @@ function init() {
   }
   renderSidebar();
 
-  // WebGPU check
-  if (!("gpu" in navigator)) {
-    supportedUI.classList.add("hidden");
-    unsupportedUI.classList.remove("hidden");
-    modelStatus.textContent = "unsupported";
-    return;
-  }
+  urlInput.value = ollamaUrl;
+  modelInput.value = ollamaModel;
 
-  populateModelSelect();
+  connectBtn.addEventListener("click", connect);
+  modelInput.addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
+  urlInput.addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
 
-  startBtn.addEventListener("click", () => loadModel(modelSelect.value));
-
-  // Seed canvas once overlay is dismissed (and on load)
-  seedCanvas();
+  // Try to connect automatically; if it fails the form + help are shown.
+  connect();
 }
 
 /* ---------- Wiring ---------- */
@@ -906,6 +868,15 @@ $("#clear-canvas").addEventListener("click", () => {
   canvas.querySelectorAll(".tile, .combine-loader").forEach((t) => t.remove());
   canvasHint.classList.remove("hidden");
   seedCanvas();
+});
+
+$("#settings-btn").addEventListener("click", () => {
+  urlInput.value = ollamaUrl;
+  modelInput.value = ollamaModel;
+  connectHelp.classList.add("hidden");
+  setConnectStatus("");
+  connectBtn.disabled = false;
+  overlay.classList.remove("hidden");
 });
 
 $("#reset-all").addEventListener("click", () => {
@@ -923,22 +894,20 @@ $("#reset-all").addEventListener("click", () => {
   toast("Reset to base elements.");
 });
 
-$("#about-link").addEventListener("click", (e) => {
-  e.preventDefault();
+$("#about-link").addEventListener("click", () => {
   alert(
     "Infinite Craft — Local Edition\n\n" +
-    "Combine elements to discover new ones. A small Gemma language model " +
-    "runs entirely in your browser via WebLLM + WebGPU and decides what " +
-    "each combination produces. The model is downloaded once and cached " +
-    "locally; discoveries are saved in localStorage.\n\n" +
-    "Tip: drag a sidebar element onto the canvas, then drop tiles on each " +
-    "other to combine."
+    "Combine elements to discover new ones. Each combination is decided by a " +
+    "Gemma 4 model running locally through Ollama — no cloud, no API keys.\n\n" +
+    "Requires Ollama (ollama.com) running with the model pulled, started with " +
+    "OLLAMA_ORIGINS set so the browser can call it.\n\n" +
+    "Tip: drag a sidebar element onto the canvas, then drop tiles on each other " +
+    "to combine."
   );
 });
 
-window.addEventListener("DOMContentLoaded", init);
-// DOMContentLoaded may have already fired for module scripts:
 if (document.readyState !== "loading") init();
+else window.addEventListener("DOMContentLoaded", init);
 </script>
 </body>
 </html>

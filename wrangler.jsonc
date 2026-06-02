@@ -1,10 +1,10 @@
 {
+  // Static hosting only: the app talks directly to the player's local Ollama
+  // server, so no Worker code or model proxy is needed.
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "infinite-craft-local",
-  "main": "worker.js",
+  "name": "infinitcraftbutlocal",
   "compatibility_date": "2026-06-02",
   "assets": {
-    "directory": "./",
-    "binding": "ASSETS"
+    "directory": "./"
   }
 }
